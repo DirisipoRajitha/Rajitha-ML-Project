@@ -81,3 +81,4 @@ The application predicts the food item from the uploaded image and displays conf
 ## Project Links
 
 * GitHub Repository: https://github.com/DirisipoRajitha/Rajitha-ML-Project
+* DEMO video:https://drive.google.com/file/d/1PRhCm7_KANBoU9FWH_8cMPQABRFGHZOX/view?usp=drive_link 
