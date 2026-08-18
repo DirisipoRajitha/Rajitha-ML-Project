@@ -3,8 +3,14 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 import numpy as np
 import os
+import re 
+from google import genai
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Load trained model
 model = load_model("korean_food_model_improved.h5")
@@ -39,94 +45,63 @@ food_info = {
         "description": "A popular spicy Korean street food made with chewy rice cakes."
     }
 }
-
 def generate_ai_info(food_name):
-    if food_name == "Tteokbokki":
-        return """
-<b>Health benefits for Indian people:</b>
-- Provides quick energy from rice cakes.
-- Contains some protein from fish cakes.
-- Can be enjoyed as an occasional snack.
+    prompt = f"""
+You are a food and nutrition assistant.
 
-<b>Possible side effects for Indian people:</b>
-- Very spicy and high in sodium.
-- May trigger acidity or indigestion in some people.
+The predicted Korean dish is: {food_name}
 
-<b>Best way for Indians to eat it:</b>
-- Eat a small portion with vegetables or protein.
-- Avoid eating it on an empty stomach.
-- Drink water or buttermilk after eating if you are sensitive to spice.
+Generate information specifically for Indian users.
+
+Give the answer in exactly these 3 sections:
+
+### 1. Health Benefits
+
+### 2. Possible Side Effects
+
+### 3. Best Way to Eat for Indians
+
+Keep the information simple, practical, and easy to understand.
+Do not make medical claims.
+Mention moderation where appropriate.
+
+Dish: {food_name}
 """
 
-    elif food_name == "Kimchi":
-        return """
-<b>Health benefits for Indian people:</b>
-- Rich in probiotics that support digestion and gut health.
-- Contains vitamins A, C, and K.
-- May improve immunity and support healthy digestion.
+    try:
+        response = client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=prompt
+        )
 
-<b>Possible side effects for Indian people:</b>
-- High sodium content may not be suitable for people with high blood pressure.
-- Spicy fermented foods may cause acidity in some individuals.
+        text = response.text
 
-<b>Best way for Indians to eat it:</b>
-- Eat 1–2 tablespoons with rice, dal, roti, or khichdi.
-- Pair it with paneer, egg, fish, or chicken.
-"""
+        text = re.sub(
+            r'\*\*(.*?)\*\*',
+            r'<strong>\1</strong>',
+            text
+        )
 
-    elif food_name == "Bibimbap":
-        return """
-<b>Health benefits for Indian people:</b>
-- Balanced meal with vegetables, rice, and protein.
-- Good source of fiber and vitamins.
+        text = re.sub(
+            r'^###\s*(.*?)$',
+            r'<h3>\1</h3>',
+            text,
+            flags=re.MULTILINE
+        )
 
-<b>Possible side effects for Indian people:</b>
-- Gochujang can be spicy for some people.
+        text = re.sub(
+            r'^---$',
+            '<hr>',
+            text,
+            flags=re.MULTILINE
+        )
 
-<b>Best way for Indians to eat it:</b>
-- Mix with vegetables and a protein source like egg or paneer.
-"""
+        text = text.replace('\n', '<br>')
 
-    elif food_name == "Bulgogi":
-        return """
-<b>Health benefits for Indian people:</b>
-- High in protein and iron.
-- Supports muscle health.
+        return text
 
-<b>Possible side effects for Indian people:</b>
-- Can be high in sugar and sodium.
-
-<b>Best way for Indians to eat it:</b>
-- Pair with rice and vegetables.
-"""
-
-    elif food_name == "Japchae":
-        return """
-<b>Health benefits for Indian people:</b>
-- Contains vegetables and some fiber.
-- Light and easy to digest.
-
-<b>Possible side effects for Indian people:</b>
-- Noodles are high in carbohydrates.
-
-<b>Best way for Indians to eat it:</b>
-- Eat with vegetables and a protein source.
-"""
-
-    elif food_name == "Kimbap":
-        return """
-<b>Health benefits for Indian people:</b>
-- Balanced combination of rice, vegetables, and protein.
-- Good for a light meal.
-
-<b>Possible side effects for Indian people:</b>
-- Can be high in refined carbohydrates.
-
-<b>Best way for Indians to eat it:</b>
-- Eat fresh and pair with soup or salad.
-"""
-
-    return "Information not available."
+    except Exception as e:
+        return f"Generative AI information could not be generated: {str(e)}"
 
 @app.route('/')
 def home():
@@ -167,4 +142,5 @@ def predict():
     )
 
 if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
     app.run(host='0.0.0.0', port=5000, debug=True)
